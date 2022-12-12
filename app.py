@@ -11,6 +11,7 @@ app = Flask(__name__)
 @app.route("/")
 def view_home():
     return render_template("index.html", title="")
+    
 
 @app.route('/run', methods=['GET', 'POST'])
 def route():

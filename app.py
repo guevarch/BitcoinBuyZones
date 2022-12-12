@@ -11,7 +11,57 @@ app = Flask(__name__)
 @app.route("/")
 def view_home():
     return render_template("index.html", title="")
-    
+
+@app.route('/test')
+def charts():
+    df = pd.read_csv("../Resources/btcjoin.csv", parse_dates=['date'])
+    btc_df = yf.download('BTC-USD')
+    btc_df = btc_df.reset_index()
+    btc_df = btc_df.loc[(btc_df['Date'] > '2022-10-25')]
+    btc_df['Close']=btc_df['Close'].astype("float")
+    df['price']=df['price'].str.replace(',','')
+    df['price']=df['price'].astype("float")
+    btc_df = btc_df.rename(columns={"Close": "price", "Date":"date"})
+    df = pd.merge(df, btc_df, on=['date', 'price'], how='outer')
+    df = df.rename(columns={"value": "wallets"})
+    df = df.drop(columns=['volume','change', 'low', 'high', 'open','Open','High','Low','Adj Close', 'Volume', 'Unnamed: 0', "wallets", "address", "mined"])
+    df['200D'] = df['price'].rolling(200).mean()
+    df['300D'] = df['price'].rolling(300).mean()
+    df['50D'] = df['price'].rolling(50).mean()
+    df = df.dropna()
+    df['meanavge'] = (df['200D'] + df['300D'] + df['50D'] )/3
+    df = df.drop(columns=['200D','300D', '50D'])
+    df['meanvalue'] = df["price"] - df["meanavge"]
+    df['status'] = df['meanvalue'].apply(lambda x: '1' if x > 0 else '0')
+    df['status']=df['status'].astype("object")
+    df['price-meanavge']=df['price'] - df['meanavge']
+    df['move%'] = df['price-meanavge']/(df['price'] + df['meanavge'])
+    bins = [-0.43, -0.1, 0, 0.1, 0.43]
+    group_names = ["Severely Oversold","Oversold", "Neutral","Overbought"]
+    df["Valuation"] = pd.cut(df["move%"], bins, labels=group_names)
+    pricefrommean = df.meanvalue.iloc[-1].round(2)
+    currentzone = df.Valuation.iloc[-1]
+    delta1cycle = df.index[df['date']=='2015-09-15'].tolist()[0] - df.index[df['date']=='2013-12-04'].tolist()[0]
+    delta2cycle = df.index[df['date']=='2019-04-2'].tolist()[0] - df.index[df['date']=='2017-12-17'].tolist()[0] 
+    averageunder = int((delta1cycle+delta2cycle)/2)
+    delta1fromp2p = df.index[df['date']=='2017-03-17'].tolist()[0] - df.index[df['date']=='2013-12-04'].tolist()[0]
+    delta2fromp2p = df.index[df['date']=='2020-11-29'].tolist()[0] - df.index[df['date']=='2017-12-17'].tolist()[0] 
+    averagep2p = int((delta1fromp2p+delta2fromp2p)/2)
+    sincealltimehigh = df.index[-1] - df.index[df['price']==df.price.max()].tolist()[0]
+    import plotly.graph_objects as go
+    import plotly.io as pio
+
+    fig = go.Figure(go.Indicator(
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        value = sincealltimehigh,
+        mode = "gauge+number+delta",
+        title = {'text': "Approximate Days to reach previous ATH"},
+        delta = {'reference': averagep2p},
+        gauge = {'axis': {'range': [None, averagep2p]},
+        'bar': {'color': "orange"},}))
+    fig.show()
+
+    return render_template('index.html', name = fig.show()) 
 
 @app.route('/run', methods=['GET', 'POST'])
 def route():

@@ -12,6 +12,45 @@ Prophet is specifically designed for business time series prediction. It achieve
 
 The process for prophet is to create a df_train, fitting it into a prophet model, and m.predict forecast. The forecast function splits the y value into yhat, yhat_lower and yhat_upper. This creates upper, lower and middle projections. By using m.plot(forecast), the df_train and forecast values are plotted. However, there is another method called insample wherein the analyst can set the pd.date_range of the prediction. Insample was used to predict prices.
 
+<pre><code>
+## Combine with Prophet
+from datetime import timedelta, date
+from prophet import Prophet
+##Log price is used to make the data more stationary, when plotting, this is converted back to linear values
+df['priceL'] = np.log(df['price'])
+
+df_train = df[['date', 'priceL']]
+df_train = df_train.rename(columns = {"date":"ds", "priceL":"y"})
+
+# instantiate the model and set parameters
+model = Prophet()
+
+# fit the model to historical data
+model.fit(df_train);
+
+start = "2010-09-25"
+end = date.today() + timedelta(days=60)
+insample = pd.DataFrame(pd.date_range(start,end, periods=92))
+
+# Change the column name
+insample.columns = ['ds']
+
+# in-sample prediction
+prediction = model.predict(insample)
+
+# Plot
+fig = model.plot(prediction, figsize=(10,5))
+ax = fig.gca()
+ax.set_title("BTC Price Prediction", size=20)
+ax.set_xlabel("Date", size=18)
+ax.set_ylabel("Prices", size=18)
+ax.tick_params(axis='y', labelsize=15)
+ax.tick_params(axis='x', rotation=45, labelsize=15)
+ax.set_xlim(pd.to_datetime(['2011-09-25', '2024-10-24'])) 
+plt.show();
+
+</code></pre>
+
 ## Meanaverage
 
 To calculate Meanaverage, the code below was implemented. This is used as measure of status - over/under valuation of price.

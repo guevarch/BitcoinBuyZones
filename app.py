@@ -153,5 +153,5 @@ def route():
     return render_template("index.html", output = prediction, date=Date, today=today, currentval=currentval)
 
 if __name__ == "__main__":
-   app.run(host='0.0.0.0', port=5000)
+   app.run()
 
